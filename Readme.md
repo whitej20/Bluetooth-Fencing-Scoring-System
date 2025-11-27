@@ -6,7 +6,7 @@ Notes before we start:
 
 Suggested materials:
 
-  1. [Adafruit ESP32](https://www.adafruit.com/product/3269) - $15 x2 (need one per box)
+  1. [ESP32][esp32] - $16 x3 (need one per box, you'll have an extra, but cheaper than buying 2x individuals)
   2. [Solderable breadboard](https://www.adafruit.com/product/1609) - $5 x2 (need one per box)
   3. [Piezo buzzer](https://www.adafruit.com/product/160) - $1.50 x2 (need one per box)
   4. [5mm LED](https://www.adafruit.com/product/4203) - $5
@@ -39,3 +39,5 @@ See this [tutorial](https://randomnerdtutorials.com/esp-now-esp32-arduino-ide/) 
 ### Helpful links:
 1. See this [tutorial](https://randomnerdtutorials.com/esp-now-esp32-arduino-ide/) for explanation of code.
 2. [ESP32 board overview](https://learn.adafruit.com/adafruit-huzzah32-esp32-feather)
+
+[esp32]: https://www.amazon.com/ESP-WROOM-32-Development-Microcontroller-Integrated-Compatible/dp/B08D5ZD528?crid=1KQGSILLUSPXO&dib=eyJ2IjoiMSJ9.-OAftzGp2pa3bNKeqEG_7TZMLABy3y0V00ME9yq1mYbiRqIdQyjnsVatafK_RPPNLigZoBzOKFbpC5kCrswuaAl_-PC8_L4lnAW0-hRIaJpX6viJM2QxOZVYvb1vMHUncHTFGhRuwvxtwHDU4t-1J9Or1Q5muVG-blMYT2JGweIOJGwtyYJCZweP4cZOxsaMuvLuR_c5hTpUSzoyjhLYMDiV_rjagSXUSF47oOTN6pI.WDO2CBKejsCBxxisU2B3sZDryFxeOPsFxibK6ho9YlQ&dib_tag=se&keywords=esp32%2Badafruit&qid=1764278487&sprefix=esp32%2Badafruit%2Caps%2C104&sr=8-3&th=1
