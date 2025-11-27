@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <Preferences.h>
+#include "config,h"
 
 const int LEDPIN = 25;  // pin for LED and buzzer
 const int BTNPIN = 13;  // pin to body cord b wire
@@ -204,7 +205,7 @@ void setup() {
   // Serial.println("Lights and sound test complete");
 
 
-  WiFi.begin("baijin eero", "49Kingsland");
+  WiFi.begin(wifiSsid, wifiPass);
   // Serial.print("Connecting");
   
   while (WiFi.status() != WL_CONNECTED) {
