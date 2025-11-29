@@ -3,10 +3,11 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <Preferences.h>
-#include "config,h"
+#include "../config.h"
 
 const int LEDPIN = 25;  // pin for LED and buzzer
 const int BTNPIN = 13;  // pin to body cord b wire
+const int GRDPIN = 27;  // pin to body cord c wire (ground/bell guard wire)
 
 int timeout = 40;  // touch timeout window
 
@@ -21,14 +22,9 @@ float last_given = 0;     // time the last touch was given
 // milliseconds, will quickly become a bigger number than can be stored in an
 // int.
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
-unsigned long debounceDelay = 5;     // the debounce time; increase if the output flickers
+unsigned long debounceDelay = 3;     // the debounce time; increase if the output flickers
 
-// 4C:C3:82:08:90:14 : Fencer 2 mac address
-// 4C:C3:82:08:90:E0 : Fencer 1 mac address
-
-// REPLACE WITH YOUR RECEIVER MAC Address
-// uint8_t peerMac[] = { 0x4C, 0xC3, 0x82, 0x08, 0x90, 0x14 };  // 4C:C3:82:08:90:14 : Fencer 2 mac address
-// uint8_t peerMac[] = {0x4C, 0xC3, 0x82, 0x08, 0x90, 0xE0}; // 4C:C3:82:08:90:E0 : Fencer 1 mac address
+// peer will be loaded from memory. if no such peer exists, it will wait to receive a udp packet giving the target
 uint8_t peerMac[6] = {0};
 bool peerConfigured = false;
 int channel = 0;
@@ -46,13 +42,7 @@ Preferences prefs;
 
 String msg = "";
 
-// void data_sent(const uint8_t *mac_addr, esp_now_send_status_t status) { //old
-// version
-void data_sent(const wifi_tx_info_t* info, esp_now_send_status_t status) {
-  // info->mac give mac addr if needed
-  // Serial.print("\r\nStatus of Last Message Sent:\t");
-  // Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
-}
+bool isSignalClean = true;
 
 // void data_receive(const uint8_t * mac, const uint8_t *incomingData, int len)
 // { //old
@@ -126,7 +116,7 @@ void addPeer(){
   peerInfo.channel = channel;
   peerInfo.encrypt = false;
   if (esp_now_add_peer(&peerInfo) != ESP_OK) {
-    // Serial.println("Failed to add peer");
+    Serial.println("Failed to add peer");
     return;
   }
 }
@@ -204,33 +194,31 @@ void setup() {
   digitalWrite(LEDPIN, LOW);
   // Serial.println("Lights and sound test complete");
 
-
-  WiFi.begin(wifiSsid, wifiPass);
-  // Serial.print("Connecting");
+  WiFi.begin();
+  // WiFi.begin(wifiSsid, wifiPass);
+  // // Serial.print("Connecting");
   
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(200);
-    // Serial.print(".");
-  }
+  // // block until connected to wifi
+  // while (WiFi.status() != WL_CONNECTED) {
+  //   delay(200);
+  //   // Serial.print(".");
+  // }
   // Serial.println("\nConnected!");
   // Serial.print(mac);
   // Serial.println(" online!");
   
-  channel = WiFi.channel();
+  // channel = WiFi.channel();
   mac = WiFi.macAddress();
   loadPeer();
   
   // Serial.print("wifi channel: ");
   // Serial.println(channel);
 
-  // sendUdpMsg("Fencer " + mac + "online!");
-
   if (esp_now_init() != ESP_OK) {
     // Serial.println("Error initializing ESP-NOW");
     return;
   }
 
-  esp_now_register_send_cb(data_sent);
   esp_now_register_recv_cb(data_receive);
   
   if(peerConfigured){
@@ -255,19 +243,15 @@ void setup() {
   if(!peerConfigured){
     awaitConfig();
   }
-  
-  // esp_now_peer_info_t peerInfo = {};
 
-  // memcpy(peerInfo.peer_addr, peerMac, 6);
-  // peerInfo.channel = channel;
-  // peerInfo.encrypt = false;
-  // if (esp_now_add_peer(&peerInfo) != ESP_OK) {
-  //   // Serial.println("Failed to add peer");
-  //   return;
-  // }
+  // begin bell guard oscillation
+  // guard pin, 1000Hz, 8 bit res
+  // ledcAttach(GRDPIN, 2, 8);
+  // ledcWrite(GRDPIN, 128); // 8 bit = 0-255, 128 is half so equal on/off
 
-  // pinMode(LEDPIN, OUTPUT);
-  // pinMode(BTNPIN, INPUT);
+  // pinMode(GRDPIN, OUTPUT);
+  // digitalWrite(GRDPIN, HIGH);
+
 }
 
 void loop() {
@@ -293,24 +277,44 @@ void loop() {
     if (reading != currState) {
       currState = reading;
 
+      // sample 10x times in 1ms to check if signal is clean
+      // not in a function to reduce overhead
+      // int highCount;
+      // for(int i = 0; i < 10; i++){
+      //   if (digitalRead(BTNPIN) == HIGH){
+      //     highCount++;
+      //   }
+      //   delayMicroseconds(100);
+      // }
+
+      // if(highCount >= 9) { // allow 1 sample tolerance
+      //   isSignalClean = true;
+      // } else{
+      //   isSignalClean = false;
+      // }
+
       // only toggle the LED if the new button state is HIGH
       if (reading == HIGH) {
-        last_given = millis();
-        strcpy(message.character, "Fencer 1 hit");
-        message.floating_value = millis();
-        esp_err_t outcome =
-          esp_now_send(peerMac, (uint8_t*)&message, sizeof(message));
 
-        if (outcome == ESP_OK) {
-          // Serial.println("Mesage sent successfully!");
-        } else {
-          // Serial.println("Error sending the message");
-        }
+        // if(!isSignalClean){
+        //   currState = LOW;
+        //   sendUdpMsg("GROUND: " + mac);
+        // } else{
+          last_given = millis();
+          strcpy(message.character, "hit");
+          message.floating_value = millis();
+          esp_err_t outcome = esp_now_send(peerMac, (uint8_t*)&message, sizeof(message));
+        // }
+
+
+        // if (outcome == ESP_OK) {
+        //   Serial.println("Mesage sent successfully!");
+        // } else {
+        //   Serial.println("Error sending the message");
+        // }
 
         score();
-        // } else {
-        //   digitalWrite(LEDPIN, LOW);
-        //   ledState = LOW;
+        
       }
     }
   }
@@ -326,8 +330,7 @@ void score() {
     digitalWrite(LEDPIN, HIGH);
 
     // Serial.println("Point scored");
-    msg = mac + "hit";
-    sendUdpMsg(msg);
+    sendUdpMsg("POINT: " + mac);
     delay(1000);
 
     digitalWrite(LEDPIN, LOW);
