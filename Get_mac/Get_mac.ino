@@ -11,5 +11,6 @@ void setup(){
 }
 
 void loop(){
-
+  Serial.println(touchRead(T0));
+  delay(200);
 }
