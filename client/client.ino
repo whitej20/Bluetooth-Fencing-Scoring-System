@@ -1,3 +1,4 @@
+// client.ino
 #include <esp_now.h>
 #include <WiFi.h>
 #include "WiFi.h"
@@ -5,7 +6,7 @@
 #include <cmath> 
 
 
-const int LEDPIN = 25;
+// const int LEDPIN = 25;
 const int BTNPIN = 13;
 const int TCHPIN = 32;
 int touch;
@@ -33,6 +34,7 @@ int channel = 0;
 
 typedef struct struct_message {
   char character[32];
+  int touch;
   float floating_value;
 } struct_message;
 struct_message message;
@@ -59,7 +61,7 @@ void data_receive(const esp_now_recv_info_t* info, const uint8_t* incomingData,
 
 void setup() {
   Serial.begin(115200);
-  pinMode(LEDPIN, OUTPUT);
+  // pinMode(LEDPIN, OUTPUT);
   // Serial.println("on");
 
   WiFi.mode(WIFI_MODE_STA);
@@ -87,7 +89,7 @@ void setup() {
 }
 
 void loop() {
-  touch = touchRead(T0);
+  // touch = touchRead(T0);
   // // Serial.println(touch);
   // if (touch < 10) {
   //   // // Serial.println("guard hit");
@@ -121,28 +123,28 @@ void loop() {
         // digitalWrite(LEDPIN, LOW);
 
       } else {
-        digitalWrite(LEDPIN, LOW);
+        // digitalWrite(LEDPIN, LOW);
         // // Serial.println("OFF");
       }
   }
   
-  if (abs(touch - currTouch) > 4){
-    currTouch = touch;
-    Serial.println(touch);
+  // if (abs(touch - currTouch) > 2){
+  //   currTouch = touch;
+  //   Serial.println(touch);
 
-    if (touch < 10) {
-      strcpy(message.character, "grd");
-      message.floating_value = millis();
-      esp_err_t outcome = esp_now_send(peerMac, (uint8_t*)&message, sizeof(message));
+  //   if (touch < 5) {
+  //     strcpy(message.character, "grd");
+  //     message.floating_value = millis();
+  //     esp_err_t outcome = esp_now_send(peerMac, (uint8_t*)&message, sizeof(message));
 
-      if (outcome == ESP_OK) {
-        Serial.println("Mesage sent successfully!");
-      } else {
-        Serial.println("Error sending the message");
-      }
-      // Serial.println("guard hit");
-    }
-  }
+  //     if (outcome == ESP_OK) {
+  //       Serial.println("Mesage sent successfully!");
+  //     } else {
+  //       Serial.println("Error sending the message");
+  //     }
+  //     // Serial.println("guard hit");
+  //   }
+  // }
   // // Serial.println();
 }
 

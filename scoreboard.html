@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fencing Scoreboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0a0c;
+    --panel:     #111116;
+    --border:    #2a2a35;
+    --dim:       #1e1e28;
+    --text:      #e8e8f0;
+    --sub:       #6a6a80;
+    --left-col:  #00c44f;
+    --right-col: #e63535;
+    --off-col:   #d4d0c0;
+    --yellow-c:  #f5c842;
+    --red-c:     #e63535;
+    --black-c:   #111116;
+    --pcard-c:   #8b5cf6;
+    --glow-g:    0 0 24px rgba(0,196,79,0.7), 0 0 60px rgba(0,196,79,0.35);
+    --glow-r:    0 0 24px rgba(230,53,53,0.7), 0 0 60px rgba(230,53,53,0.35);
+    --glow-w:    0 0 18px rgba(212,208,192,0.6), 0 0 40px rgba(212,208,192,0.25);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* -- Header -- */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 4px;
+    color: var(--text);
+  }
+  #conn-status {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--sub);
+    background: var(--dim);
+    transition: all 0.3s;
+  }
+  #conn-status.connected { color: var(--left-col); border-color: var(--left-col); }
+  #conn-status.disconnected { color: var(--right-col); border-color: var(--right-col); }
+
+  /* -- Main layout -- */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-rows: auto auto auto;
+    gap: 0;
+    padding: 16px;
+  }
+
+  /* -- LIGHTS ROW -- */
+  .lights-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .lights-side {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .lights-side.right { flex-direction: row-reverse; }
+
+  .light-valid {
+    flex: 1;
+    aspect-ratio: 1;
+    max-height: 180px;
+    border-radius: 50%;
+    border: 3px solid var(--border);
+    background: #111;
+    transition: background 0.08s, box-shadow 0.08s;
+    position: relative;
+    overflow: hidden;
+  }
+  .light-valid::after {
+    content: '';
+    position: absolute;
+    top: 12%;
+    left: 18%;
+    width: 30%;
+    height: 20%;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
+    transform: rotate(-35deg);
+  }
+
+  .light-valid.on-left {
+    background: radial-gradient(circle at 40% 35%, #6fffaa, var(--left-col) 60%, #004d1f);
+    box-shadow: var(--glow-g);
+    border-color: var(--left-col);
+  }
+  .light-valid.on-right {
+    background: radial-gradient(circle at 40% 35%, #ff9999, var(--right-col) 60%, #5c0000);
+    box-shadow: var(--glow-r);
+    border-color: var(--right-col);
+  }
+
+  .light-off {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: #111;
+    transition: background 0.08s, box-shadow 0.08s;
+    flex-shrink: 0;
+    align-self: flex-end;
+  }
+  .light-off.on {
+    background: radial-gradient(circle at 40% 35%, #fff, var(--off-col) 70%, #888);
+    box-shadow: var(--glow-w);
+    border-color: var(--off-col);
+  }
+
+  .lights-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .period-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 3px;
+    color: var(--sub);
+  }
+  .period-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  /* -- SCORE ROW -- */
+  .score-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .score-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 16px;
+  }
+  .score-side.left  { border-right: 1px solid var(--border); }
+  .score-side.right { border-left: 1px solid var(--border); }
+
+  .fencer-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 3px;
+    color: var(--sub);
+    margin-bottom: 4px;
+  }
+  .fencer-name.left  { color: var(--left-col); }
+  .fencer-name.right { color: var(--right-col); }
+
+  .score-display {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 5.5rem;
+    line-height: 1;
+    color: var(--text);
+    min-width: 2ch;
+    text-align: center;
+  }
+
+  .score-btns {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .timer-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 20px;
+    min-width: 160px;
+  }
+  .timer-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 3px;
+    color: var(--sub);
+    margin-bottom: 2px;
+  }
+  .timer-display {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 3.4rem;
+    letter-spacing: 2px;
+    color: var(--text);
+    line-height: 1;
+    transition: color 0.3s;
+  }
+  .timer-display.low { color: var(--right-col); animation: pulse 0.8s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  .timer-btns {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  /* -- CARDS ROW -- */
+  .cards-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .cards-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+  }
+  .cards-panel h3 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.9rem;
+    letter-spacing: 3px;
+    margin-bottom: 10px;
+  }
+  .cards-panel.left  h3 { color: var(--left-col); }
+  .cards-panel.right h3 { color: var(--right-col); }
+
+  .cards-inner {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .card-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .card-group label {
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    color: var(--sub);
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .card-pips {
+    display: flex;
+    gap: 3px;
+  }
+  .pip {
+    width: 22px;
+    height: 30px;
+    border-radius: 3px;
+    border: 1.5px solid var(--border);
+    background: var(--dim);
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  }
+  .pip.yellow.on { background: var(--yellow-c); border-color: var(--yellow-c); box-shadow: 0 0 8px rgba(245,200,66,0.5); }
+  .pip.red.on    { background: var(--red-c);    border-color: var(--red-c);    box-shadow: 0 0 8px rgba(230,53,53,0.5); }
+  .pip.black.on  { background: #222; border-color: #555; box-shadow: 0 0 8px rgba(180,180,180,0.3); }
+
+  .pcard-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+  }
+  .pcard-badge {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1.5px solid var(--border);
+    background: var(--dim);
+    color: var(--sub);
+    transition: all 0.2s;
+  }
+  .pcard-badge.on {
+    background: var(--pcard-c);
+    border-color: var(--pcard-c);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(139,92,246,0.5);
+  }
+
+  /* -- Buttons -- */
+  button {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--dim);
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  button:hover { background: var(--border); }
+  button:active { transform: scale(0.96); }
+
+  button.primary {
+    background: var(--left-col);
+    border-color: var(--left-col);
+    color: #000;
+  }
+  button.primary:hover { filter: brightness(1.2); }
+  button.danger {
+    background: var(--right-col);
+    border-color: var(--right-col);
+    color: #fff;
+  }
+  button.danger:hover { filter: brightness(1.2); }
+  button.warn {
+    background: var(--yellow-c);
+    border-color: var(--yellow-c);
+    color: #000;
+  }
+  button.small { padding: 3px 7px; font-size: 0.72rem; }
+
+  /* -- Settings modal -- */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    min-width: 300px;
+    max-width: 90vw;
+  }
+  .modal h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 4px;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+  .modal label {
+    display: block;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    color: var(--sub);
+    margin-bottom: 4px;
+    margin-top: 12px;
+  }
+  .modal input {
+    width: 100%;
+    background: var(--dim);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    padding: 6px 10px;
+    outline: none;
+  }
+  .modal input:focus { border-color: var(--left-col); }
+  .modal-btns { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+
+  /* -- Control bar -- */
+  .ctrl-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    justify-content: center;
+  }
+
+  /* -- Lights control section -- */
+  .lights-ctrl {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 8px;
+  }
+
+  /* -- Buzzer flash -- */
+  @keyframes buzzerFlash {
+    0%,100% { background: var(--bg); }
+    25%,75% { background: #1a0000; }
+    50%     { background: #2a0000; }
+  }
+  body.buzzer { animation: buzzerFlash 0.4s 3; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚔ FENCING SCOREBOARD</h1>
+  <span id="conn-status">● DISCONNECTED</span>
+</header>
+
+<main>
+  <!-- LIGHTS -->
+  <div class="lights-row">
+    <div class="lights-side left">
+      <div class="light-valid" id="light-left-valid" title="Left valid hit"></div>
+      <div class="light-off"   id="light-left-off"   title="Left off-target"></div>
+    </div>
+    <div class="lights-center">
+      <div class="period-label">PERIOD</div>
+      <div class="period-num" id="period-num">1</div>
+    </div>
+    <div class="lights-side right">
+      <div class="light-valid" id="light-right-valid" title="Right valid hit"></div>
+      <div class="light-off"   id="light-right-off"   title="Right off-target"></div>
+    </div>
+  </div>
+
+  <!-- SCORE + TIMER -->
+  <div class="score-row">
+    <div class="score-side left">
+      <div class="fencer-name left">LEFT</div>
+      <div class="score-display" id="score-left">0</div>
+      <div class="score-btns">
+        <button onclick="send('l_score+')" class="primary">+</button>
+        <button onclick="send('l_score-')">−</button>
+      </div>
+    </div>
+
+    <div class="timer-center">
+      <div class="timer-label">TIME</div>
+      <div class="timer-display" id="timer-display">3:00</div>
+      <div class="timer-btns">
+        <button onclick="send('start')" class="primary" id="btn-start">▶ START</button>
+        <button onclick="send('stop')"  class="danger"  id="btn-stop">■ STOP</button>
+      </div>
+    </div>
+
+    <div class="score-side right">
+      <div class="fencer-name right">RIGHT</div>
+      <div class="score-display" id="score-right">0</div>
+      <div class="score-btns">
+        <button onclick="send('r_score+')" class="danger">+</button>
+        <button onclick="send('r_score-')">−</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARDS -->
+  <div class="cards-row">
+    <!-- Left cards -->
+    <div class="cards-panel left">
+      <h3>LEFT FENCER CARDS</h3>
+      <div class="cards-inner">
+        <div class="card-group">
+          <label>YELLOW</label>
+          <div class="card-pips">
+            <div class="pip yellow" id="ly0"></div>
+            <div class="pip yellow" id="ly1"></div>
+          </div>
+          <button class="small warn" onclick="send('l_yellow')">+Y</button>
+        </div>
+        <div class="card-group">
+          <label>RED</label>
+          <div class="card-pips">
+            <div class="pip red" id="lr0"></div>
+            <div class="pip red" id="lr1"></div>
+          </div>
+          <button class="small danger" onclick="send('l_red')">+R</button>
+        </div>
+        <div class="card-group">
+          <label>BLACK</label>
+          <div class="card-pips">
+            <div class="pip black" id="lb0"></div>
+          </div>
+          <button class="small" onclick="send('l_black')">BK</button>
+        </div>
+        <div class="pcard-indicator">
+          <label style="font-size:0.65rem;letter-spacing:1px;color:var(--sub);font-family:'Share Tech Mono',monospace">P-CARD</label>
+          <div class="pcard-badge" id="pcard-left">P</div>
+          <button class="small" onclick="send('l_pcaFrd')">Toggle</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right cards -->
+    <div class="cards-panel right">
+      <h3>RIGHT FENCER CARDS</h3>
+      <div class="cards-inner">
+        <div class="card-group">
+          <label>YELLOW</label>
+          <div class="card-pips">
+            <div class="pip yellow" id="ry0"></div>
+            <div class="pip yellow" id="ry1"></div>
+          </div>
+          <button class="small warn" onclick="send('r_yellow')">+Y</button>
+        </div>
+        <div class="card-group">
+          <label>RED</label>
+          <div class="card-pips">
+            <div class="pip red" id="rr0"></div>
+            <div class="pip red" id="rr1"></div>
+          </div>
+          <button class="small danger" onclick="send('r_red')">+R</button>
+        </div>
+        <div class="card-group">
+          <label>BLACK</label>
+          <div class="card-pips">
+            <div class="pip black" id="rb0"></div>
+          </div>
+          <button class="small" onclick="send('r_black')">BK</button>
+        </div>
+        <div class="pcard-indicator">
+          <label style="font-size:0.65rem;letter-spacing:1px;color:var(--sub);font-family:'Share Tech Mono',monospace">P-CARD</label>
+          <div class="pcard-badge" id="pcard-right">P</div>
+          <button class="small" onclick="send('r_pcard')">Toggle</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Control bar -->
+<div class="ctrl-bar">
+  <button onclick="send('clear')">CLEAR LIGHTS</button>
+  <button onclick="openSetTime()">SET TIME</button>
+  <button onclick="send('reset_time')">RESET TIME</button>
+  <button onclick="send('reset_all')" class="danger">RESET ALL</button>
+  <button onclick="openSettings()">SETTINGS</button>
+</div>
+
+<!-- Set Time Modal -->
+<div class="modal-overlay" id="modal-settime">
+  <div class="modal">
+    <h2>SET TIMER</h2>
+    <label>Time (MM:SS)</label>
+    <input type="text" id="input-time" placeholder="3:00" value="3:00">
+    <div class="modal-btns">
+      <button onclick="closeModals()">Cancel</button>
+      <button class="primary" onclick="applySetTime()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="modal-settings">
+  <div class="modal">
+    <h2>SETTINGS</h2>
+    <label>WebSocket Server (ws://...)</label>
+    <input type="text" id="input-ws" placeholder="ws://localhost:8765">
+    <div class="modal-btns">
+      <button onclick="closeModals()">Cancel</button>
+      <button class="primary" onclick="applySettings()">Connect</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// -- WebSocket ----------------------------------------------------------------
+let ws = null;
+let wsUrl = 'ws://localhost:8765';
+let reconnectTimer = null;
+
+function connect() {
+  if (ws) { try { ws.close(); } catch(e) {} }
+  ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    setStatus('connected', '● CONNECTED');
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  };
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'state') applyState(msg.data);
+    if (msg.type === 'buzzer') triggerBuzzer();
+  };
+
+  ws.onclose = () => {
+    setStatus('disconnected', '- DISCONNECTED');
+    reconnectTimer = setTimeout(connect, 2000);
+  };
+
+  ws.onerror = () => {
+    setStatus('disconnected', '- ERROR');
+  };
+}
+
+function send(cmd) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'command', cmd }));
+  }
+}
+
+function setStatus(cls, text) {
+  const el = document.getElementById('conn-status');
+  el.className = cls;
+  el.textContent = text;
+}
+
+// -- State application --------------------------------------------------------
+function applyState(s) {
+  // Lights
+  const lv = document.getElementById('light-left-valid');
+  const rv = document.getElementById('light-right-valid');
+  const lo = document.getElementById('light-left-off');
+  const ro = document.getElementById('light-right-off');
+
+  lv.className = 'light-valid' + (s.lights.left_valid  ? ' on-left'  : '');
+  rv.className = 'light-valid' + (s.lights.right_valid ? ' on-right' : '');
+  lo.className = 'light-off'   + (s.lights.left_off    ? ' on' : '');
+  ro.className = 'light-off'   + (s.lights.right_off   ? ' on' : '');
+
+  // Scores
+  document.getElementById('score-left').textContent  = s.scores.left;
+  document.getElementById('score-right').textContent = s.scores.right;
+
+  // Timer
+  const m = Math.floor(s.timer.seconds / 60);
+  const sec = s.timer.seconds % 60;
+  const td = document.getElementById('timer-display');
+  td.textContent = `${m}:${String(sec).padStart(2,'0')}`;
+  td.className = 'timer-display' + (s.timer.seconds <= 30 && s.timer.seconds > 0 ? ' low' : '');
+
+  // Period
+  document.getElementById('period-num').textContent = s.period;
+
+  // Cards – left
+  const lc = s.cards.left;
+  document.getElementById('ly0').classList.toggle('on', lc.yellow >= 1);
+  document.getElementById('ly1').classList.toggle('on', lc.yellow >= 2);
+  document.getElementById('lr0').classList.toggle('on', lc.red >= 1);
+  document.getElementById('lr1').classList.toggle('on', lc.red >= 2);
+  document.getElementById('lb0').classList.toggle('on', lc.black);
+
+  // Cards – right
+  const rc = s.cards.right;
+  document.getElementById('ry0').classList.toggle('on', rc.yellow >= 1);
+  document.getElementById('ry1').classList.toggle('on', rc.yellow >= 2);
+  document.getElementById('rr0').classList.toggle('on', rc.red >= 1);
+  document.getElementById('rr1').classList.toggle('on', rc.red >= 2);
+  document.getElementById('rb0').classList.toggle('on', rc.black);
+
+  // P-cards
+  document.getElementById('pcard-left').classList.toggle('on',  s.pcards.left);
+  document.getElementById('pcard-right').classList.toggle('on', s.pcards.right);
+}
+
+function triggerBuzzer() {
+  document.body.classList.add('buzzer');
+  setTimeout(() => document.body.classList.remove('buzzer'), 1300);
+}
+
+// -- Modals -------------------------------------------------------------------
+function openSetTime() {
+  document.getElementById('modal-settime').classList.add('open');
+  document.getElementById('input-time').focus();
+}
+function openSettings() {
+  document.getElementById('input-ws').value = wsUrl;
+  document.getElementById('modal-settings').classList.add('open');
+  document.getElementById('input-ws').focus();
+}
+function closeModals() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
+}
+function applySetTime() {
+  const val = document.getElementById('input-time').value.trim();
+  send('set_time ' + val);
+  closeModals();
+}
+function applySettings() {
+  wsUrl = document.getElementById('input-ws').value.trim() || wsUrl;
+  closeModals();
+  connect();
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModals(); });
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (document.querySelector('.modal-overlay.open')) return;
+  const k = e.key;
+  if (k === ' ')  { e.preventDefault(); send('start'); }
+  if (k === 'Escape') send('stop');
+  if (k === 'c' || k === 'C') send('clear');
+});
+
+// -- Init ---------------------------------------------------------------------
+connect();
+</script>
+</body>
+</html>
