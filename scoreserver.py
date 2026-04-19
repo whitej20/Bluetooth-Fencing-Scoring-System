@@ -6,8 +6,8 @@ Run: python3 scoreboard_server.py [port]
 Default port: 8765
 
 CLI Commands (type in terminal after server starts):
-  l_valid     - Left fencer valid hit (green light)
-  r_valid     - Right fencer valid hit (green light)
+  l_hit     - Left fencer valid hit (green light)
+  r_hit     - Right fencer valid hit (green light)
   l_off       - Left fencer off-target hit (white light)
   r_off       - Right fencer off-target hit (white light)
   clear       - Clear all lights
@@ -42,8 +42,8 @@ from websockets.server import serve
 # -- State ----------------------------------------------------------------------
 state = {
     "lights": {
-        "left_valid": False,
-        "right_valid": False,
+        "left_hit": False,
+        "right_hit": False,
         "left_off": False,
         "right_off": False,
     },
@@ -60,6 +60,7 @@ state = {
 clients = set()
 timer_task = None
 loop = None  # main event loop reference
+lightClearTask = None
 
 # -- Broadcast ------------------------------------------------------------------
 async def broadcast(msg: dict):
@@ -99,13 +100,17 @@ async def stop_timer():
     await broadcast({"type": "state", "data": state})
 
 # -- Light auto-clear -----------------------------------------------------------
-async def auto_clear_lights(delay=3.0):
-    await asyncio.sleep(delay)
-    state["lights"] = {k: False for k in state["lights"]}
-    await broadcast({"type": "state", "data": state})
+async def auto_clear_lights(delay=1.0):
+    try:
+        await asyncio.sleep(delay)
+        state["lights"] = {k: False for k in state["lights"]}
+        await broadcast({"type": "state", "data": state})
+    except asyncio.CancelledError:
+        pass
 
 # -- Command handler (async) ----------------------------------------------------
 async def handle_command(cmd: str):
+    global lightClearTask
     cmd = cmd.strip().lower()
     parts = cmd.split()
     if not parts:
@@ -114,17 +119,25 @@ async def handle_command(cmd: str):
     verb = parts[0]
 
     light_map = {
-        "l_valid": "left_valid",
-        "r_valid": "right_valid",
+        "l_hit": "left_hit",
+        "r_hit": "right_hit",
         "l_off":   "left_off",
         "r_off":   "right_off",
     }
 
     if verb in light_map:
-        state["lights"] = {k: False for k in state["lights"]}
-        state["lights"][light_map[verb]] = True
+        lightKey = light_map[verb]
+
+        # turn ON this light (don't clear others)
+        state["lights"][lightKey] = True
+
         await broadcast({"type": "state", "data": state})
-        asyncio.create_task(auto_clear_lights())
+
+        if lightClearTask:
+            lightClearTask.cancel()
+
+        # restart auto-clear timer
+        lightClearTask = asyncio.create_task(auto_clear_lights())
 
     elif verb == "clear":
         state["lights"] = {k: False for k in state["lights"]}
