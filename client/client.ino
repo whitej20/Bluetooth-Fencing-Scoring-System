@@ -6,8 +6,8 @@
 #include <esp_wifi.h>
 
 // const int LEDPIN = 25;
-const int BTNPIN = 13;
-const int TCHPIN = 32;
+const int BTNPIN = 18;
+const int TCHPIN = 4;
 int touch;
 int currTouch;
 
@@ -58,7 +58,7 @@ void data_receive(const esp_now_recv_info_t *info, const uint8_t *incomingData, 
 
 void setup() {
    Serial.begin(115200);
-   // pinMode(LEDPIN, OUTPUT);
+   pinMode(BTNPIN, OUTPUT);
    // Serial.println("on");
 
    WiFi.mode(WIFI_MODE_STA);

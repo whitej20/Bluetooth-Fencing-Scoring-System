@@ -1,8 +1,17 @@
 // server.ino
 #include "WiFi.h"
+#include <BLE2902.h>
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
+
+// Nordic UART Service UUIDs - standard, recognized by most BLE tools
+#define NUS_SERVICE_UUID "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
+#define NUS_CHAR_RX_UUID "6E400002-B5A3-F393-E0A9-E50E24DCCA9E" // write (phone->ESP)
+#define NUS_CHAR_TX_UUID "6E400003-B5A3-F393-E0A9-E50E24DCCA9E" // notify (ESP->phone)
 
 // #4: B0:CB:D8:E2:FF:AC
 // #5: 28:05:A5:32:B2:C4
@@ -10,23 +19,17 @@ uint8_t peerMac1[6] = {0xB0, 0xCB, 0xD8, 0xE2, 0xFF, 0xAC};
 uint8_t peerMac2[6] = {0x28, 0x05, 0xA5, 0x32, 0xB2, 0xC4};
 int channel = 1;
 
-float last_received = 0; // time the last touch was received
-float last_given = 0;    // time the last touch was given
+const int GRDPIN_L = 13;
+const int GRDPIN_R = 12;
+const int LEDPIN_L = 32;
+const int LEDPIN_R = 14;
 
-const int GRDPIN_L = 27;
-const int GRDPIN_R = 13;
-const int LEDPIN_L = 14;
-const int LEDPIN_R = 12;
-
-// TimerHandle_t ledTimers[4];
 QueueHandle_t ledQs[4];
 const int pins[4] = {LEDPIN_R, LEDPIN_L, GRDPIN_R, GRDPIN_L};
 
-unsigned long hitTime[2] = {0, 0};     // time each fencer last hit
 const unsigned long LOCKOUT_EPEE = 40; // FIE epee double-touch window
-bool hitLocked[2] = {false, false};
 
-const int LIGHT_TIMER = 2000; // how long light lasts
+const int LIGHT_TIMER = 2000; // how long light lasts in ms
 
 unsigned long firstHitTime = 0;
 int firstFencer = -1;
@@ -45,50 +48,44 @@ volatile ScoringState state = IDLE;
 
 TaskHandle_t windowTaskHandle = NULL;
 
-void processHit(int fencerIndex) {
-   unsigned long now = millis(); // server receive time
+BLECharacteristic *txChar = nullptr;
+bool bleConnected = false;
 
-   if (state == LOCKED) {
-      Serial.println("Locked out, hit rejected");
-      return;
+class BLEConnectionCallbacks : public BLEServerCallbacks {
+   void onConnect(BLEServer *server) override {
+      bleConnected = true;
+      Serial.println("[BLE] Client connected");
    }
+   void onDisconnect(BLEServer *server) override {
+      bleConnected = false;
+      Serial.println("[BLE] Client disconnected, restarting advertising");
+      BLEDevice::startAdvertising();
+   }
+};
 
-   if (state == IDLE) {
-      // First hit
-      firstFencer = fencerIndex;
-      firstHitTime = now;
-      state = FIRST_HIT;
-      Serial.printf("First hit: fencer %d at %lums\n", fencerIndex, now);
+void setupBLE() {
+   BLEDevice::init("FencingScorer");
+   BLEServer *server = BLEDevice::createServer();
+   server->setCallbacks(new BLEConnectionCallbacks());
 
-      // Start window expiry task
-      xTaskCreate(windowTimerTask, "win", 2048, NULL, 2, &windowTaskHandle);
+   BLEService *service = server->createService(NUS_SERVICE_UUID);
 
-   } else if (state == FIRST_HIT) {
-      if (fencerIndex == firstFencer) {
-         Serial.println("Same fencer duplicate, ignored");
-         return;
-      }
+   txChar = service->createCharacteristic(NUS_CHAR_TX_UUID, BLECharacteristic::PROPERTY_NOTIFY);
+   txChar->addDescriptor(new BLE2902());
 
-      // Second hit — evaluate
-      unsigned long delta = now - firstHitTime;
-      state = LOCKED;
+   service->start();
+   BLEAdvertising *adv = BLEDevice::getAdvertising();
+   adv->addServiceUUID(NUS_SERVICE_UUID);
+   adv->setScanResponse(true);
+   BLEDevice::startAdvertising();
+   Serial.println("[BLE] Advertising started");
+}
 
-      // Kill the window timer, no longer needed
-      if (windowTaskHandle != NULL) {
-         vTaskDelete(windowTaskHandle);
-         windowTaskHandle = NULL;
-      }
-
-      Serial.printf("Second hit: fencer %d, delta=%lums\n", fencerIndex, delta);
-
-      if (delta <= LOCKOUT_EPEE) {
-         Serial.println("DOUBLE TOUCH");
-         lightFencer(0);
-         lightFencer(1);
-      } else {
-         Serial.printf("SINGLE TOUCH - fencer %d\n", firstFencer);
-         lightFencer(firstFencer);
-      }
+void bleSend(const char *msg) {
+   if (bleConnected && txChar != nullptr) {
+      txChar->setValue((uint8_t *)msg, strlen(msg));
+      txChar->notify();
+      Serial.printf("[BLE] Sent: %s\n", msg);
    }
 }
 
@@ -97,7 +94,7 @@ void windowTimerTask(void *pvParameters) {
 
    if (state == FIRST_HIT) {
       state = LOCKED;
-      Serial.printf("Window expired — fencer %d wins\n", firstFencer);
+      Serial.printf("Window expired - fencer %d wins\n", firstFencer);
       lightFencer(firstFencer);
    }
 
@@ -108,6 +105,7 @@ void windowTimerTask(void *pvParameters) {
 void lightFencer(int fencerIndex) {
    uint8_t msg = 1;
    xQueueOverwrite(ledQs[fencerIndex], &msg);
+   bleSend(fencerIndex == 0 ? "r_hit" : "l_hit");
 }
 
 void resetScoring() {
@@ -145,6 +143,51 @@ void led_task(void *pvParameters) {
    }
 }
 
+void processHit(int fencerIndex) {
+   unsigned long now = millis(); // server receive time
+
+   if (state == LOCKED) {
+      Serial.println("Locked out, hit rejected");
+      return;
+   }
+
+   if (state == IDLE) {
+      // 1st hit
+      firstFencer = fencerIndex;
+      firstHitTime = now;
+      state = FIRST_HIT;
+      Serial.printf("First hit: fencer %d at %lums\n", fencerIndex, now);
+      xTaskCreate(windowTimerTask, "win", 2048, NULL, 2, &windowTaskHandle);
+
+   } else if (state == FIRST_HIT) {
+      if (fencerIndex == firstFencer) {
+         Serial.println("Same fencer duplicate, ignored");
+         return;
+      }
+
+      // eval 2nd hit timing
+      unsigned long delta = now - firstHitTime;
+      state = LOCKED;
+
+      // kill the window timer, no longer needed
+      if (windowTaskHandle != NULL) {
+         vTaskDelete(windowTaskHandle);
+         windowTaskHandle = NULL;
+      }
+
+      Serial.printf("Second hit: fencer %d, delta=%lums\n", fencerIndex, delta);
+
+      if (delta <= LOCKOUT_EPEE) {
+         Serial.println("DOUBLE TOUCH");
+         lightFencer(0);
+         lightFencer(1);
+      } else {
+         Serial.printf("SINGLE TOUCH - fencer %d\n", firstFencer);
+         lightFencer(firstFencer);
+      }
+   }
+}
+
 void data_sent(const wifi_tx_info_t *info, esp_now_send_status_t status) {
    Serial.print("\r\nStatus of Last Message Sent:\t");
    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
@@ -165,18 +208,17 @@ void setup() {
    pinMode(LEDPIN_L, OUTPUT);
    pinMode(GRDPIN_R, OUTPUT);
    pinMode(GRDPIN_L, OUTPUT);
-   // Serial.println("on");
 
    WiFi.mode(WIFI_MODE_STA);
-   // WiFi.begin();
+   WiFi.disconnect();
+
    esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
 
    if (esp_now_init() != ESP_OK) {
       Serial.println("Error initializing ESP-NOW");
       return;
    }
-   // esp_wifi_set_max_tx_power(84); // 84 = 21 dBm, maximum allowed
-
+   
    esp_now_register_send_cb(data_sent);
 
    esp_now_peer_info_t peer1 = {};
@@ -203,33 +245,24 @@ void setup() {
    xTaskCreate(resetTask, "reset", 2048, NULL, 1, NULL);
 
    for (int i = 0; i < 4; i++) {
-      // int timer = (i < 2) ? 1000 : 100;
-      // int timer = 1000;
-
       ledQs[i] = xQueueCreate(1, sizeof(uint8_t)); // depth 1 = only 1 pending
-      // ledTimers[i] = xTimerCreate("led_off", pdMS_TO_TICKS(timer), pdFALSE, (void*)i, led_timer_cb);
       xTaskCreate(led_task, "led", 1024, (void *)i, 1, NULL);
    }
 
-   digitalWrite(LEDPIN_L, HIGH);
-   digitalWrite(LEDPIN_R, HIGH);
-   digitalWrite(GRDPIN_L, HIGH);
-   digitalWrite(GRDPIN_R, HIGH);
-   delay(200);
-   digitalWrite(LEDPIN_L, LOW);
-   digitalWrite(LEDPIN_R, LOW);
-   digitalWrite(GRDPIN_L, LOW);
-   digitalWrite(GRDPIN_R, LOW);
-   delay(200);
-   digitalWrite(LEDPIN_L, HIGH);
-   digitalWrite(LEDPIN_R, HIGH);
-   digitalWrite(GRDPIN_L, HIGH);
-   digitalWrite(GRDPIN_R, HIGH);
-   delay(200);
-   digitalWrite(LEDPIN_L, LOW);
-   digitalWrite(LEDPIN_R, LOW);
-   digitalWrite(GRDPIN_L, LOW);
-   digitalWrite(GRDPIN_R, LOW);
+   setupBLE();
+
+   for(int i = 0; i < 5; i++){
+      digitalWrite(LEDPIN_L, HIGH);
+      digitalWrite(LEDPIN_R, HIGH);
+      digitalWrite(GRDPIN_L, HIGH);
+      digitalWrite(GRDPIN_R, HIGH);
+      delay(200);
+      digitalWrite(LEDPIN_L, LOW);
+      digitalWrite(LEDPIN_R, LOW);
+      digitalWrite(GRDPIN_L, LOW);
+      digitalWrite(GRDPIN_R, LOW);
+      delay(200);
+   }
 
    Serial.println("setup complete");
 }

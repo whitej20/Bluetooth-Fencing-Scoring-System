@@ -17,8 +17,8 @@
       --dim: #1e1e28;
       --text: #e8e8f0;
       --sub: #6a6a80;
-      --left-col: #00c44f;
-      --right-col: #e63535;
+      --left-col: #e63535;
+      --right-col: #00c44f;
       --off-col: #d4d0c0;
       --yellow-c: #f5c842;
       --red-c: #e63535;
@@ -71,13 +71,13 @@
     }
 
     #conn-status.connected {
-      color: var(--left-col);
-      border-color: var(--left-col);
+      color: var(--right-col);
+      border-color: var(--right-col);
     }
 
     #conn-status.disconnected {
-      color: var(--right-col);
-      border-color: var(--right-col);
+      color: var(--left-col);
+      border-color: var(--left-col);
     }
 
     main {
@@ -282,8 +282,8 @@
       letter-spacing: 3px;
       padding: 14px 32px;
       border-radius: 6px;
-      border: 2px solid var(--left-col);
-      background: var(--left-col);
+      border: 2px solid var(--right-col);
+      background: var(--right-col);
       color: #000;
       cursor: pointer;
       transition: background 0.15s, border-color 0.15s;
@@ -292,8 +292,8 @@
     }
 
     #btn-toggle.running {
-      background: var(--right-col);
-      border-color: var(--right-col);
+      background: var(--left-col);
+      border-color: var(--left-col);
       color: #fff;
     }
 
@@ -440,8 +440,8 @@
     }
 
     button.primary {
-      background: var(--left-col);
-      border-color: var(--left-col);
+      background: var(--right-col);
+      border-color: var(--right-col);
       color: #000;
     }
 
@@ -450,8 +450,8 @@
     }
 
     button.danger {
-      background: var(--right-col);
-      border-color: var(--right-col);
+      background: var(--left-col);
+      border-color: var(--left-col);
       color: #fff;
     }
 
@@ -577,8 +577,8 @@
         <div class="light-off" id="light-left-off" title="Left off-target"></div>
       </div>
       <div class="lights-center">
-        <div class="period-label">PERIOD</div>
-        <div class="period-num" id="period-num">1</div>
+        <!-- <div class="period-label">PERIOD</div>
+        <div class="period-num" id="period-num">1</div> -->
       </div>
       <div class="lights-side right">
         <div class="light-valid" id="light-right-valid" title="Right valid hit"></div>
@@ -592,7 +592,7 @@
         <!-- <div class="fencer-name left">LEFT</div> -->
         <div class="score-display" id="score-left">0</div>
         <div class="score-btns">
-          <button onclick="send('l_score+')" class="primary">+</button>
+          <button onclick="send('l_score+')" class="danger">+</button>
           <button onclick="send('l_score-')">-</button>
         </div>
       </div>
@@ -611,7 +611,7 @@
         <!-- <div class="fencer-name right">RIGHT</div> -->
         <div class="score-display" id="score-right">0</div>
         <div class="score-btns">
-          <button onclick="send('r_score+')" class="danger">+</button>
+          <button onclick="send('r_score+')" class="primary">+</button>
           <button onclick="send('r_score-')">-</button>
         </div>
       </div>
@@ -642,7 +642,7 @@
 
       <!-- Right cards -->
       <div class="cards-panel right">
-        <h3>RIGHT FENCER</h3>
+        <h3>CARDS</h3>
         <div class="cards-cols">
           <div class="counter-block">
             <div class="counter-label">PENALTIES</div>

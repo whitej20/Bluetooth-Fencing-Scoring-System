@@ -38,8 +38,17 @@ import threading
 import time
 import websockets
 from websockets.server import serve
+from bleak import BleakScanner, BleakClient
 
-# -- State ----------------------------------------------------------------------
+# Nordic UART Service UUIDs - standard, recognized by most BLE tools
+NUS_SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
+NUS_RX_UUID = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E" # write (phone->ESP)
+NUS_TX_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E" # notify (ESP->phone)
+ESP32_NAME = "FencingScorer"  # must match BLEDevice::init() name on ESP32
+
+LIGHT_DURATION = 2.0 # in s
+
+# state 
 state = {
     "lights": {
         "left_hit": False,
@@ -62,7 +71,43 @@ timer_task = None
 loop = None  # main event loop reference
 lightClearTask = None
 
-# -- Broadcast ------------------------------------------------------------------
+hitTimerRunning = False
+
+# handle ble notifs
+def ble_notif_handler(sender, data: bytearray):
+    # call from bleak internal thread when recv from esp
+    cmd = data.decode("utf-8".strip())
+    print(f"[BLE] recvd: {cmd}")
+    if loop and not loop.is_closed():
+        asyncio.run_coroutine_threadsafe(handle_command(cmd), loop)
+
+# ble loop always scans for esp, reconnect on drop
+async def ble_loop():
+    retryTime = 5 # in seconds
+    while True:
+        print(f"[BLE] Scanning for {ESP32_NAME}...")
+        try:
+            device = await BleakScanner.find_device_by_name(ESP32_NAME, timeout=10.0)
+            if device is None:
+                print(f"[BLE] Device not found, retrying in {retryTime}s...")
+                await asyncio.sleep(retryTime)
+
+            print(f"[BLE] Found device: {device.address}")
+            async with BleakClient(device) as client:
+                print(f"[BLE] Connected to {device.address}")
+                await client.start_notify(NUS_TX_UUID, ble_notif_handler)
+                print("[BLE] Subscribed to notifications")
+
+                # Hold connection open until it drops
+                while client.is_connected:
+                    await asyncio.sleep(1)
+
+                print("[BLE] Connection lost, reconnecting...")
+        except Exception as e:
+            print(f"[BLE] Device not found, retrying in {retryTime}s...")
+            await asyncio.sleep(retryTime)
+
+# broadcast 
 async def broadcast(msg: dict):
     if clients:
         data = json.dumps(msg)
@@ -73,7 +118,7 @@ def broadcast_sync(msg: dict):
     if loop and not loop.is_closed():
         asyncio.run_coroutine_threadsafe(broadcast(msg), loop)
 
-# -- Timer ----------------------------------------------------------------------
+# timer 
 async def run_timer():
     global state
     while state["timer"]["running"] and state["timer"]["seconds"] > 0:
@@ -99,18 +144,21 @@ async def stop_timer():
         timer_task.cancel()
     await broadcast({"type": "state", "data": state})
 
-# -- Light auto-clear -----------------------------------------------------------
-async def auto_clear_lights(delay=1.0):
+# light auto clear 
+async def auto_clear_lights(delay=LIGHT_DURATION):
+    global hitTimerRunning
     try:
         await asyncio.sleep(delay)
         state["lights"] = {k: False for k in state["lights"]}
+        hitTimerRunning = False
         await broadcast({"type": "state", "data": state})
     except asyncio.CancelledError:
         pass
 
-# -- Command handler (async) ----------------------------------------------------
+# command handler async
 async def handle_command(cmd: str):
     global lightClearTask
+    global hitTimerRunning
     cmd = cmd.strip().lower()
     parts = cmd.split()
     if not parts:
@@ -128,15 +176,27 @@ async def handle_command(cmd: str):
     if verb in light_map:
         lightKey = light_map[verb]
 
-        # turn ON this light (don't clear others)
+        # if timer running, stop it. 
+        if state["timer"]["running"]:
+            hitTimerRunning = True
+            await stop_timer()
+
+        # turn on light
         state["lights"][lightKey] = True
+
+        # increment scores for whoever hit
+        if hitTimerRunning:
+            if verb == "l_hit":
+                state["scores"]["left"] = min(99, state["scores"]["left"] + 1)
+            elif verb == "r_hit":
+                state["scores"]["right"] = min(99, state["scores"]["right"] + 1)
 
         await broadcast({"type": "state", "data": state})
 
         if lightClearTask:
             lightClearTask.cancel()
 
-        # restart auto-clear timer
+        # restart auto clear timer
         lightClearTask = asyncio.create_task(auto_clear_lights())
 
     elif verb == "clear":
@@ -216,7 +276,7 @@ async def handle_command(cmd: str):
     else:
         print(f"Unknown command: '{cmd}'. Type 'help' for commands.")
 
-# -- WebSocket handler ----------------------------------------------------------
+# web socket handler 
 async def ws_handler(ws):
     clients.add(ws)
     print(f"[+] Client connected ({len(clients)} total)")
@@ -235,7 +295,7 @@ async def ws_handler(ws):
         clients.discard(ws)
         print(f"[-] Client disconnected ({len(clients)} total)")
 
-# -- CLI input thread -----------------------------------------------------------
+# cli input thread 
 def cli_thread():
     print("Fencing Scoreboard ready. Type 'help' for commands.\n")
     while True:
@@ -248,15 +308,18 @@ def cli_thread():
         except KeyboardInterrupt:
             break
 
-# -- Main -----------------------------------------------------------------------
 async def main():
     global loop
     loop = asyncio.get_running_loop()
 
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
 
+    # cli input
     t = threading.Thread(target=cli_thread, daemon=True)
     t.start()
+
+    # async start ble
+    asyncio.create_task(ble_loop())
 
     print(f"WebSocket server listening on ws://localhost:{port}")
     print(f"Open scoreboard.html in your browser.\n")
