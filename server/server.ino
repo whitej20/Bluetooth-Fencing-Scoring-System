@@ -23,6 +23,7 @@ const int GRDPIN_L = 13;
 const int GRDPIN_R = 12;
 const int LEDPIN_L = 32;
 const int LEDPIN_R = 14;
+const int SOUNDPIN = 23;
 
 QueueHandle_t ledQs[4];
 const int pins[4] = {LEDPIN_R, LEDPIN_L, GRDPIN_R, GRDPIN_L};
@@ -132,8 +133,10 @@ void led_task(void *pvParameters) {
    while (1) {
       if (xQueueReceive(ledQs[index], &dummy, portMAX_DELAY)) {
          digitalWrite(pin, HIGH);
+         digitalWrite(SOUNDPIN, HIGH);
          vTaskDelay(LIGHT_TIMER / portTICK_PERIOD_MS);
          digitalWrite(pin, LOW);
+         digitalWrite(SOUNDPIN, LOW);
 
          xSemaphoreGive(resetSemaphore);
 
@@ -208,6 +211,7 @@ void setup() {
    pinMode(LEDPIN_L, OUTPUT);
    pinMode(GRDPIN_R, OUTPUT);
    pinMode(GRDPIN_L, OUTPUT);
+   pinMode(SOUNDPIN, OUTPUT);
 
    WiFi.mode(WIFI_MODE_STA);
    WiFi.disconnect();
@@ -251,16 +255,18 @@ void setup() {
 
    setupBLE();
 
-   for(int i = 0; i < 5; i++){
+   for(int i = 0; i < 4; i++){
       digitalWrite(LEDPIN_L, HIGH);
       digitalWrite(LEDPIN_R, HIGH);
       digitalWrite(GRDPIN_L, HIGH);
       digitalWrite(GRDPIN_R, HIGH);
+      digitalWrite(SOUNDPIN, HIGH);
       delay(200);
       digitalWrite(LEDPIN_L, LOW);
       digitalWrite(LEDPIN_R, LOW);
       digitalWrite(GRDPIN_L, LOW);
       digitalWrite(GRDPIN_R, LOW);
+      digitalWrite(SOUNDPIN, LOW);
       delay(200);
    }
 
