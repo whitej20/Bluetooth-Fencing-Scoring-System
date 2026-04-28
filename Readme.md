@@ -18,7 +18,8 @@
 
 ### Required software
 - [Arduino IDE](https://www.arduino.cc/en/software/)
-- 
+- Python
+- Some way to run a localhost webserver (e.g.,vscode live server extension)
 
 ## Building the circuits:
 <pre>
