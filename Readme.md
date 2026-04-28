@@ -63,6 +63,9 @@ See this [tutorial](https://randomnerdtutorials.com/esp-now-esp32-arduino-ide/) 
 - Pick your favorite way to run a **localhost webserver** to serve `scoreboard.html`. I use a live server extension in VS Code
 - Create a virtual environment with `python -m venv .venv`
 - Run `pip install -r requirements.txt`
+- Start the live server
+- Make sure **BLUETOOTH IS TURNED ON** on your laptop or what ever device is running it
+- Run `python scoreserver.py`
 
 ### Helpful links:
 1. See this [tutorial](https://randomnerdtutorials.com/esp-now-esp32-arduino-ide/) for explanation of code.
