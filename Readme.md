@@ -2,7 +2,7 @@
 
 ### Notes before we start:
 1. This is very much still a WIP
-2. This system DOES NOT GROUND, bell guard hits will register as will touches on the strip
+2. This system does not ground YET, bell guard hits will register as will touches on the strip. This is something currently being worked on.
 3. No guarantee of timing accuracy, should be about right but I have not tested how accurate it is
 4. Forked from https://github.com/MatthewKazan/Bluetooth-Fencing-Scoring-System
 
