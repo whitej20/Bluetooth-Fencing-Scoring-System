@@ -7,7 +7,7 @@ Notes before we start:
 
 Suggested materials:
 
-  1. [ESP32][esp32] - $9 x2 (need one per box)
+  1. [ESP32][esp32] - $15 x3 (need one per box)
   2. [Solderable breadboard](https://www.adafruit.com/product/1609) - $5 x2 (need one per box)
   3. [Piezo buzzer](https://www.adafruit.com/product/160) - $1.50 x2 (need one per box)
   4. [5mm LED](https://www.adafruit.com/product/4203) - $5
