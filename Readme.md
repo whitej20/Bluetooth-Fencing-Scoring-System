@@ -1,9 +1,10 @@
 # Bluetooth-Fencing-Scoring-System
 
 Notes before we start:
-1. This system DOES NOT GROUND, bell guard hits will register as will touches on the strip obviously
-2. No guarantee of timing accuracy, should be about right but I have not tested how accurate it is
-3. Forked from https://github.com/MatthewKazan/Bluetooth-Fencing-Scoring-System
+1. This is very much still a WIP
+2. This system DOES NOT GROUND, bell guard hits will register as will touches on the strip obviously
+3. No guarantee of timing accuracy, should be about right but I have not tested how accurate it is
+4. Forked from https://github.com/MatthewKazan/Bluetooth-Fencing-Scoring-System
 
 Suggested materials:
 
@@ -15,24 +16,42 @@ Suggested materials:
   7. Solder/Soldering iron
   8. Small portable charger with short(3") usb->micro usb cable x2
   9. Some sort of protective housing to put the circuit in, I modeled and 3d printed one but a cardboard box would work just as well. Make sure the Micro usb port is visible from the outside.
-## Building the circuit:
+
+
+## Building the circuits:
 <pre>
-
-<img src="./circuit_diagram.png" align="left" width="500px"/>
-
+<h1>Client</h1>
+<img src="./client_circuit.png" align="left" width="500px"/>
+<img src="./client_example.png" align="left" width="700px"/>
 </pre>
 
-1. Place ESP32 board into breadboard with usb connector at the edge, solder header pins to breadboard
-2. Wire positive pin of LED to pin A1 or GPIO pin 25(same pin) ([pinout found here](https://learn.adafruit.com/adafruit-huzzah32-esp32-feather/pinouts))
-3. Wire negative pin of LED to positive speaker pin and 330 ohm resistor, negative speaker pin and resistor should end at ground.
-4. Wire 5v out pin on board to A line in the epee socket, Wire b line in socket to D9 pin on board
+1. Wire the 3v3 pin to the B-wire (middle) on the body cord
+2. Wire GPIO pin 18 to the A-wire (closer side) on the body cord
+3. Wire GPIO pin 4 to the C-wire (farther side) on the body cord
+4. Repeat for the second fencer
+<br><br>
+
+
+<pre>
+<h1>Server</h1>
+<img src="./server_circuit.png" align="left" width="500px"/>
+<img src="./server_example.png" align="left" width="700px"/>
+</pre>
+
+1. GPIO pin 32 to the left LED (red)
+2. GPIO pin 13 to the left guard LED (yellow)
+3. GPIO pin 14 to the right LED (green)
+4. GPIO pin 12 to the right guard LED (yellow)
+5. (optional) GPIO pin 23 to a buzzer
+6. Wire all negative leads of the LEDs (and buzzer) to a GND pin
+
 
 
 ## Building the program:
 1. Go to tools and set board to ESP32 dev module, set port to the port where you board is plugged in.
-2. We first must find the MAC address of the ESP32 board, using the included get_mac.ino program. The MAC address will be output to the serial monitor, you must manually convert it to the correct format seen in Fencer1.ino and Fencer2.ino (0xYY where YY is the corresponding 2 characters in the mac address).
-3. Set uint8_t broadcastAddress at line 27 in Fencer1.ino to the found MAC address of the board you are using for Fencer2.ino and set uint8_t broadcastAddress at line 27 in Fencer2.ino to the MAC address of the board for Fencer1.ino
-4. Download Fencer1.ino and Fencer2.ino to there respective boards. Use body cord to connect to weapon and test. I use a small portable phone charger plugged into the arduino's mircro usb port for power while in use.
+2. We first must find the MAC address of the ESP32 board, using the included get_mac.ino program. The MAC address will be output to the serial monitor, you must manually convert it to the correct format seen in client.ino and server.ino (0xYY where YY is the corresponding 2 characters in the mac address). Do this for all 3 boards and take note of them.
+3. Set `uint8_t peerMac[6]` in client.ino to the of the board you are using for server.ino and set `uint8_t peerMac1[6]` and `uint8_t peerMac2[6]` server.ino to the MAC addresses of each of the client boards
+4. Download client.ino and server.ino to there respective boards. Use body cord to connect to weapon and test. I use a small portable phone charger plugged into the arduino's mircro usb port for power while in use.
 
 See this [tutorial](https://randomnerdtutorials.com/esp-now-esp32-arduino-ide/) for explanation of code.
 
