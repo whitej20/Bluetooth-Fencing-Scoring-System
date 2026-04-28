@@ -1,22 +1,24 @@
 # Bluetooth-Fencing-Scoring-System
 
-Notes before we start:
+### Notes before we start:
 1. This is very much still a WIP
-2. This system DOES NOT GROUND, bell guard hits will register as will touches on the strip obviously
+2. This system DOES NOT GROUND, bell guard hits will register as will touches on the strip
 3. No guarantee of timing accuracy, should be about right but I have not tested how accurate it is
 4. Forked from https://github.com/MatthewKazan/Bluetooth-Fencing-Scoring-System
 
-Suggested materials:
+### Suggested materials:
+- [ESP32][esp32] - $15 x3 (need one per box)
+- [Solderable breadboard](https://www.adafruit.com/product/1609) - $5 x2 (need one per box)
+- [Piezo buzzer](https://www.adafruit.com/product/160) - $1.50 x2 (need one per box)
+-  [5mm LED](https://www.adafruit.com/product/4203) - $5
+-  [Epee socket](https://www.absolutefencinggear.com/af-clear-epee-socket.html) - $8 x2 (need one per box)
+-  Solder/Soldering iron
+-  Small portable charger with short(3") usb->micro usb cable x2
+-  Some sort of protective housing to put the circuit in, I modeled and 3d printed one but a cardboard box would work just as well. Make sure the Micro usb port is visible from the outside.
 
-  1. [ESP32][esp32] - $15 x3 (need one per box)
-  2. [Solderable breadboard](https://www.adafruit.com/product/1609) - $5 x2 (need one per box)
-  3. [Piezo buzzer](https://www.adafruit.com/product/160) - $1.50 x2 (need one per box)
-  4. [5mm LED](https://www.adafruit.com/product/4203) - $5
-  6. [Epee socket](https://www.absolutefencinggear.com/af-clear-epee-socket.html) - $8 x2 (need one per box)
-  7. Solder/Soldering iron
-  8. Small portable charger with short(3") usb->micro usb cable x2
-  9. Some sort of protective housing to put the circuit in, I modeled and 3d printed one but a cardboard box would work just as well. Make sure the Micro usb port is visible from the outside.
-
+### Required software
+- [Arduino IDE](https://www.arduino.cc/en/software/)
+- 
 
 ## Building the circuits:
 <pre>
@@ -54,6 +56,12 @@ Suggested materials:
 4. Download client.ino and server.ino to there respective boards. Use body cord to connect to weapon and test. I use a small portable phone charger plugged into the arduino's mircro usb port for power while in use.
 
 See this [tutorial](https://randomnerdtutorials.com/esp-now-esp32-arduino-ide/) for explanation of code.
+
+## Using the GUI
+- Ensure you have python installed
+- Pick your favorite way to run a **localhost webserver** to serve `scoreboard.html`. I use a live server extension in VS Code
+- Create a virtual environment with `python -m venv .venv`
+- Run `pip install -r requirements.txt`
 
 ### Helpful links:
 1. See this [tutorial](https://randomnerdtutorials.com/esp-now-esp32-arduino-ide/) for explanation of code.
