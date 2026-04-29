@@ -1,0 +1,35 @@
+client.ino
+server.ino
+
+3 esp setup
+
+figure out guard hit value vs solid hit
+
+
+FIX UI!!!
+- bigger buttons
+- time and score bigger
+- maybe overlay scores on top of the 
+- move timer reset buttons so no accidental clicks
+- maybe remove card counters
+- have lights take up the entire screen, as a background 
+- score bigger, up/down arrows above/below to incr/decr score
+- broadcast info as web server or via bluetooth so phone can access scoreboard and be used as a remote
+- start/stop timer needs to be waaaaay bigger
+
+client
+- capacitive sensing
+- calibrate capacitive sensing at start of bout to find range 
+- test detection on guard and on tip
+- send 1 packet on hit and 1 packet on release
+- maybe add a release packet for valid hit as well to mimic behavior of holding tip pressed (weights/shims test)
+
+server
+- process time received packet client packet and internal timestamp
+- make final decision on lockout
+- use guard hit on/off packets to control leds
+- also valid hit on/off packets
+  - on valid hit off pack do short beep on speaker
+- 
+
+***DOCUMENTATION!!!!!!***
